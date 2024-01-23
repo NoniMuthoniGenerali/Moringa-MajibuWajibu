@@ -1,15 +1,11 @@
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import MetaData
 from sqlalchemy_serializer import SerializerMixin
 from sqlalchemy.orm import validates
 from sqlalchemy.ext.hybrid import hybrid_property
-from config import bcrypt
+from sqlalchemy import MetaData
 
-metadata = MetaData(naming_convention={
-    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
-})
+from config import bcrypt,db
 
-db = SQLAlchemy(metadata=metadata)
+
 
 class User(db.Model, SerializerMixin):
     __tablename__ ='users'
@@ -23,9 +19,9 @@ class User(db.Model, SerializerMixin):
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     #update_at = db.Column(db.DateTime, onupdate=db.func.now())
 
-    posts = db.relationship('Post', backref('user'))
-    comments =db.relationship('Comment', back_populates('user'))
-    votes = db.relationship('Vote', back_populates('user'))
+    posts = db.relationship('Post', backref ='user')
+    comments =db.relationship('Comment', back_populates='user')
+    votes = db.relationship('Vote', back_populates='user')
 
     #password and authentification
     @hybrid_property
@@ -52,7 +48,7 @@ class User(db.Model, SerializerMixin):
         return username 
 
     @validates('email')
-     def validates_email(self,key,email):
+    def validates_email(self,key,email):
         import re
         pattern = r'^[a-z]*.[a-z]*@student.moringaschool.com'
         regex = re.compile(pattern)
@@ -63,7 +59,7 @@ class User(db.Model, SerializerMixin):
         return email
 
     @validates('full_name')
-        def validates_full_name(self,key,full_name):
+    def validates_full_name(self,key,full_name):
             if not full_name:
                 raise ValueError("Please provide your full name")
             return full_name
@@ -76,22 +72,22 @@ class Comment(db.Model, SerializerMixin):
     __tablename__ = 'comments'
     serialize_rules =('-post.comments', '-user.comments')
 
-     id = db.Column(db.Integer, primary_key = True)
-     post_id = db.Column(db.Integer, db.ForeignKey('post.id'))
-     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-     content = db. Column(db.String, nullable=False)
-     created_at = db.Column(db.DateTime, server_default=db.func.now())
-     update_at = db.Column(db.DateTime, onupdate=db.func.now())
+    id = db.Column(db.Integer, primary_key = True)
+    post_id = db.Column(db.Integer, db.ForeignKey('posts.id'))
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    content = db. Column(db.String, nullable=False)
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    update_at = db.Column(db.DateTime, onupdate=db.func.now())
 
-    post =db.relationship ('Post', back_populates='comments')
-    user = db.relationship('User', back_populates='comments')
+    user = db.relationship("User", back_populates="comments")
+    post = db.relationship("Post", back_populates="comments")
 
     @validates('content')
     def Validate_content(self,key,content):
         if not content:
             raise ValueError('Say something')
         if len(content) < 25:
-            raise value error ('say a little bit more, must be more than 25 characters')
+            raise ValueError ('say a little bit more, must be more than 25 characters')
         return content
 
     def _repr__ (self):
@@ -108,18 +104,18 @@ class Post (db.Model, SerializerMixin):
     resources = db.Column(db.String)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     update_at = db.Column(db.DateTime, onupdate=db.func.now())
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
 
 
-    comments = db.relationship('Comment', backref('post'))
-    votes = db. relationship('Comment', back_populates('post'))
+    comments = db.relationship('Comment', back_populates='post')
+    votes = db. relationship('Vote', back_populates='post')
 
     @validates('content')
-    def Validate_content(self,key,post):
+    def Validate_content(self,key,content):
         if not content:
             raise ValueError('Say something')
         if len(content) < 300:
-            raise value error ('say a little bit more, post must have more than 300 characters')
+            raise ValueError('say a little bit more, post must have more than 300 characters')
         return content
 
     @validates('phase')
@@ -133,9 +129,9 @@ class Post (db.Model, SerializerMixin):
         if not title:
             raise ValueError('Please provide a title')
 
-            if len(title) not in range(3,100):
-                raise ValueError('Title should be atleast 3 characters long')
-            return title
+        if len(title) not in range(3,100):
+            raise ValueError('Title should be atleast 3 characters long')
+        return title
 
     def _repr__ (self):
         return  f'''Title:{self.title} Content{self.content} '''
@@ -146,13 +142,13 @@ class Vote(db.Model, SerializerMixin):
     serialize_rules = ('-user.votes', '-post.votes')
     id = db.Column(db.Integer, primary_key=True)
     vote_type = db.Column(db.Boolean)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    post_id =db.Column(db.Integer, db.ForeignKey('post.id'))
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    post_id =db.Column(db.Integer, db.ForeignKey('posts.id'))
     created_at = db.Column(db.DateTime, server_default=db.func.now())
 
 
-    user = db.relationship('User'), back_populates= ('votes')
-    posts = db.relationship('Post'), back_populates=('votes')
+    user = db.relationship('User', back_populates="votes")
+    post = db.relationship('Post', back_populates="votes")
 
     
 
