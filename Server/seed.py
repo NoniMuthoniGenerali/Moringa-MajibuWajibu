@@ -1,8 +1,8 @@
-from config import db, app
+from Server.config import db, app,bcrypt
 from faker import Faker
-from models import User, Comment, Vote, Post
+from Server.models import User, Comment, Vote, Post
 from random import choice
-from config import bcrypt
+
 
 fake = Faker()
 

@@ -9,13 +9,14 @@ from sqlalchemy import MetaData
 from flask_sqlalchemy import SQLAlchemy
 
 
+
 load_dotenv()
 
 app = Flask(__name__)
 
 db = SQLAlchemy()
 
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///moringa.db"
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:////Users/generali/mwanasayanSEE/Moringa-MajibuWajibu/Server/instance/moringa.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.json.compact = False
 app.secret_key = environ.get('SECRET KEY')
