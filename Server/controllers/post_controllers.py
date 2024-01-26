@@ -1,9 +1,10 @@
-from flask import Blueprint, make_response, jsonify
+from flask import Blueprint, make_response, jsonify, request
 from flask_restful import Api, Resource, reqparse
-from Server.models import Post, Comment, Vote
-from Server.config import db
+from server.models import User, Post, Comment, Vote
+from server.config import db
+from server.auth_middleware import token_required
 
-post_bp=Blueprint("post_bp", __name__)
+post_bp = Blueprint("post_bp", __name__)
 api = Api(post_bp)
 
 parser = reqparse.RequestParser()
@@ -12,15 +13,17 @@ parser.add_argument('title', type=str, help='Provide title')
 parser.add_argument('content', type=str, help='Provide content')
 parser.add_argument('resources', type=str, help='Provide resources')
 
+
 class Posts(Resource):
     def get(self):
-        post_lc=[post.to_dict() for post in Post.query.all()]
+        post_lc = [post.to_dict() for post in Post.query.all()]
 
         response = make_response(jsonify(post_lc), 200)
 
         return response
-    
-    def post(self):
+
+    @token_required
+    def post(current_user):
         try:
             args = parser.parse_args()
 
@@ -28,7 +31,8 @@ class Posts(Resource):
                 phase=args["phase"],
                 title=args["title"],
                 content=args["content"],
-                resources=args["resources"]
+                resources=args["resources"],
+                user_id=int(current_user.id)
             )
             db.session.add(new_post)
             db.session.commit()
@@ -37,59 +41,62 @@ class Posts(Resource):
 
             return response
         except ValueError as e:
-            return {"error": [str(e)]}, 401
-    
+            return {'error': [str(e)]}
 
 
 class PostByID(Resource):
+
     def get(self, post_id):
         post = Post.query.filter_by(id=post_id).first()
-
         if not post:
-            return{"error": "post not found"}, 404
-
+            return {"error": "post not found"}, 404
         return make_response(jsonify(post.to_dict()), 200)
-    
-    def patch(self, post_id):
+
+    @token_required
+    def patch(current_user, *args, post_id):
+        post = Post.query.filter_by(id=post_id).first()
+        if not post or current_user.id != post.user_id:
+            return {
+                "message": "failed to update post",
+                "error": "Unauthorized request",
+                "data": None
+            }, 401
         try:
-            args = parser.parse_args()
-
-            post = Post.query.filter_by(id=post_id).first()
-
+            args = request.get_json()
             for attr in args:
                 setattr(post, attr, args.get(attr))
-
             db.session.commit()
-
-            return make_response(jsonify(post.to_dict()), 200)
-
+            return make_response(jsonify(post.to_dict()), 201)
         except ValueError as e:
-            return {"error": [str(e)]}
-    
+            return {'error': [str(e)]}, 400
 
-    def delete(self, post_id):
+    @token_required
+    def delete(current_user, *args, post_id):
         post = Post.query.filter_by(id=post_id).first()
-        if not post:
-            return {"error": "Post not found!"}, 404
+        if not post or post.user_id != current_user.id:
+            return {
+                "message": "Unauthorized request",
+                "data": None,
+                "error": "Not found"
+            }, 404
 
-        post_votes = Vote.query.filter_by(post_id=post_id).all()
         post_comments = Comment.query.filter_by(post_id=post_id).all()
-
-        if post_votes: 
-
-            Vote.query.delete(post_votes)
+        post_votes = Vote.query.filter_by(post_id=post_id).all()
 
         if post_comments:
             Comment.query.delete(post_comments)
+        if post_votes:
+            Vote.query.delete(post_votes)
 
         db.session.delete(post)
         db.session.commit()
 
-    
-        return {
+        response_dict = {
             "message": "post deleted successfully"
-        }, 200
-        
+        }
+        response = make_response(jsonify(response_dict), 200)
+
+        return response
 
 
 api.add_resource(Posts, "/posts")

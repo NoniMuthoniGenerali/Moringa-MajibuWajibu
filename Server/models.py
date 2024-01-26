@@ -1,16 +1,13 @@
 from sqlalchemy_serializer import SerializerMixin
 from sqlalchemy.orm import validates
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy import MetaData
-
-from Server.config import bcrypt,db
-
+from Server.config import bcrypt, db
 
 
 class User(db.Model, SerializerMixin):
     __tablename__ = 'users'
     serialize_rules = ('-comments.user', '-comments.post',
-                       '-votes.user', '-posts.user', '-votes.post')
+                       '-votes.user', '-posts.user', '-votes.post', '-posts.comments', '-posts.votes')
 
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String, unique=True, nullable=False)
@@ -73,7 +70,7 @@ class User(db.Model, SerializerMixin):
     def __repr__(self):
         return f'''<User {self.username}, id: {self.id}>'''
 
-    
+
 class Comment(db.Model, SerializerMixin):
     __tablename__ = 'comments'
     serialize_rules = ('-post.comments', '-user.comments',
@@ -99,6 +96,7 @@ class Comment(db.Model, SerializerMixin):
     def __repr__(self):
         return f'''<Content: {self.id} || {self.content}>'''
 
+
 class Post(db.Model, SerializerMixin):
 
     __tablename__ = 'posts'
@@ -111,7 +109,7 @@ class Post(db.Model, SerializerMixin):
     content = db.Column(db.String, nullable=False)
     resources = db.Column(db.String)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
-    update_at = db.Column(db.DateTime, onupdate=db.func.now())
+    updated_at = db.Column(db.DateTime, onupdate=db.func.now())
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
 
     # Table relationship
@@ -151,7 +149,8 @@ class Post(db.Model, SerializerMixin):
 class Vote(db.Model, SerializerMixin):
 
     __tablename__ = 'votes'
-    serialize_rules = ('-user.votes', '-user.comments', '-user.posts')
+    serialize_rules = ('-user.votes', '-user.comments',
+                       '-user.posts', '-post.comments', '-post.votes', '-post.user')
 
     id = db.Column(db.Integer, primary_key=True)
     vote_type = db.Column(db.Boolean)
@@ -161,6 +160,3 @@ class Vote(db.Model, SerializerMixin):
 
     def __repr__(self):
         return f'''<Vote type: {self.vote_type}>'''
-    
-
-     
