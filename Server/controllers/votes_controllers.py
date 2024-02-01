@@ -1,37 +1,48 @@
 from flask import Blueprint, make_response, jsonify, request
 from flask_restful import Api, Resource, reqparse
-from Server.models import Vote
-from Server.config import db
-from Server.auth_middleware import token_required
+from server.models import Vote
+from server.config import db
+from server.auth_middleware import token_required
 
+
+# Instantiate Blueprint
 vote_bp = Blueprint("vote_bp", __name__)
 api = Api(vote_bp)
 
 
+# Vote data parser
 parser = reqparse.RequestParser()
 parser.add_argument('vote_type', type=str, help='Provide vote')
 parser.add_argument('post_id', type=int, help='Provide post id')
 parser.add_argument('user_id', type=int, help='Provide user id')
 
 
+# Vote resources
 class Votes(Resource):
     def get(self):
         vote_lc = [vote.to_dict() for vote in Vote.query.all()]
         return make_response(jsonify(vote_lc), 200)
 
-    def post(self):
+    @token_required
+    def post(current_user, *args):
         try:
             args = parser.parse_args()
 
+            vote = Vote.query.filter(
+                Vote.user_id == current_user.id, Vote.post_id == args["post_id"]).first()
+
+            if vote:
+                return {"message": "Vote exists"}
+            
             new_vote = Vote(
                 post_id=args["post_id"],
                 user_id=args["user_id"],
-                vote_type=args["content"]
+                vote_type=(args["content"])
             )
             db.session.add(new_vote)
             db.session.commit()
 
-            return make_response(jsonify(new_vote.to_dict()), 200)
+            return make_response(jsonify(new_vote.to_dict()), 201)
         except ValueError as e:
             return {"error": [str(e)]}
 
@@ -81,5 +92,6 @@ class VoteByID(Resource):
     #     return {"message": "Vote deleted successfully"}, 200
 
 
+# Add resources to the API
 api.add_resource(Votes, "/votes")
 api.add_resource(VoteByID, "/votes/<int:vote_id>")

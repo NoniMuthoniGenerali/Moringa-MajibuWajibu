@@ -4,15 +4,18 @@ from server.models import Comment
 from server.config import db
 from server.auth_middleware import token_required
 
+# Instantiate Blueprint
 comment_bp = Blueprint("comment_bp", __name__)
 api = Api(comment_bp)
 
 
+# Comment data parser
 parser = reqparse.RequestParser()
 parser.add_argument('content', type=str, help='Provide content')
 parser.add_argument('post_id', type=int, help='Provide post id')
 
 
+# Comment resources
 class Comments(Resource):
     def get(self):
         comment_lc = [comment.to_dict() for comment in Comment.query.all()]
@@ -24,14 +27,14 @@ class Comments(Resource):
             args = parser.parse_args()
 
             new_comment = Comment(
-                post_id=args["post_id"],
+                post_id=int(args["post_id"]),
                 user_id=current_user.id,
                 content=args["content"]
             )
             db.session.add(new_comment)
             db.session.commit()
 
-            return make_response(jsonify(new_comment), 200)
+            return make_response(jsonify(new_comment.to_dict()), 200)
         except ValueError as e:
             return {"error": [str(e)]}
 
@@ -87,5 +90,6 @@ class CommentByID(Resource):
         return {"message": "comment deleted successfully"}
 
 
+# Add resources to the API
 api.add_resource(Comments, "/comments")
 api.add_resource(CommentByID, "/comments/<int:comment_id>")
